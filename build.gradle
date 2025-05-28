@@ -12,7 +12,7 @@ plugins {
  * Project Variables
  */
 group = 'com.avrix'
-version = '1.6.0'
+version = '1.6.1'
 
 /**
  * Path to the compiled Jar file
@@ -226,32 +226,43 @@ tasks.register('createZombieJar') {
         def zombieFolderPath = System.getenv("ZOMBIE_FOLDER_PATH")
         def archiveName = 'ProjectZomboid-core-41.78.16.jar'
 
-        if (zombieFolderPath != null && !zombieFolderPath.isEmpty()) {
-            def tempDir = file('tempDir')
-            def tempDirZombie = file('tempDir/zombie')
-            tempDir.mkdirs()
-
-            copy {
-                from zombieFolderPath
-                into tempDirZombie
-            }
-
-            exec {
-                commandLine 'jar', 'cvf', archiveName, '-C', tempDir, '.'
-            }
-
-            def libsFolder = file('libs')
-            libsFolder.mkdirs()
-            def targetFile = file("${libsFolder}/${archiveName}")
-            if (targetFile.exists()) {
-                targetFile.delete()
-            }
-            file(archiveName).renameTo(targetFile)
-
-            delete tempDir
-        } else {
-            println "The ZOMBIE_FOLDER_PATH environment variable is not set or is empty."
+        if (zombieFolderPath == null || zombieFolderPath.isEmpty()) {
+            println "Error: The ZOMBIE_FOLDER_PATH environment variable is not set or is empty."
+            throw new GradleException("ZOMBIE_FOLDER_PATH is required for createZombieJar.")
         }
+
+        def tempDir = file('tempDir')
+        def tempDirZombie = file('tempDir/zombie')
+        tempDir.mkdirs()
+
+        copy {
+            from zombieFolderPath
+            into tempDirZombie
+        }
+
+        // Check for .class files before creating the JAR
+        def classFiles = fileTree(tempDir) {
+            include '**/*.class'
+        }
+        if (classFiles.isEmpty()) {
+            println "Error: No .class files found in ${zombieFolderPath}. Please check the path and make sure it contains compiled Java classes."
+            delete tempDir
+            throw new GradleException("No .class files found, JAR creation aborted.")
+        }
+
+        exec {
+            commandLine 'jar', 'cvf', archiveName, '-C', tempDir, '.'
+        }
+
+        def libsFolder = file('libs')
+        libsFolder.mkdirs()
+        def targetFile = file("${libsFolder}/${archiveName}")
+        if (targetFile.exists()) {
+            targetFile.delete()
+        }
+        file(archiveName).renameTo(targetFile)
+
+        delete tempDir
     }
 }
 
@@ -264,55 +275,56 @@ tasks.register('createZombieLibsJar') {
         def gameFolderPath = System.getenv('GAME_FOLDER_PATH')
         def archiveName = 'ProjectZomboid-libs-41.78.16.jar'
 
-        if (gameFolderPath != null && !gameFolderPath.isEmpty()) {
-            def tempDir = file('temps')
-            tempDir.mkdirs()
-
-            def jarFiles = file(gameFolderPath).listFiles().findAll { it.isFile() && it.name.endsWith('.jar') && !it.name.contains(rootProject.name) }
-
-            def excludedFolders = ['zombie', 'jre', 'jre64', 'launcher', 'media',
-                                   'license', 'mods', 'win32', 'win64', 'workshop']
-            def includedFolders = file(gameFolderPath).listFiles().findAll { it.isDirectory() && !excludedFolders.contains(it.name.toLowerCase()) }
-
-            includedFolders.each { dir ->
-                copy {
-                    from dir
-                    into file("${tempDir}/${dir.name}")
-                }
-            }
-
-            jarFiles.each { jarFile ->
-                copy {
-                    from jarFile
-                    into tempDir
-                }
-            }
-
-            def tempJarFiles = tempDir.listFiles().findAll { it.isFile() && it.name.endsWith('.jar') }
-
-            tempJarFiles.each { jarFile ->
-                exec {
-                    workingDir tempDir
-                    commandLine 'jar', 'xf', jarFile.absolutePath
-                }
-                jarFile.delete()
-            }
-
-            exec {
-                commandLine 'jar', 'cvf', archiveName, '-C', tempDir, '.'
-            }
-
-            def libsFolder = file('libs')
-            libsFolder.mkdirs()
-            def targetFile = file("${libsFolder}/${archiveName}")
-            if (targetFile.exists()) {
-                targetFile.delete()
-            }
-            file(archiveName).renameTo(file("${libsFolder}/${archiveName}"))
-
-            delete tempDir
-        } else {
-            println('The GAME_FOLDER_PATH environment variable is not set or is empty.')
+        if (gameFolderPath == null || gameFolderPath.isEmpty()) {
+            println('Error: The GAME_FOLDER_PATH environment variable is not set or is empty.')
+            throw new GradleException("GAME_FOLDER_PATH is required for createZombieLibsJar.")
         }
+
+        def tempDir = file('temps')
+        tempDir.mkdirs()
+
+        def jarFiles = file(gameFolderPath).listFiles().findAll { it.isFile() && it.name.endsWith('.jar') && !it.name.contains(rootProject.name) }
+
+        def excludedFolders = ['zombie', 'jre', 'jre64', 'launcher', 'media',
+                               'license', 'mods', 'win32', 'win64', 'workshop']
+        def includedFolders = file(gameFolderPath).listFiles().findAll { it.isDirectory() && !excludedFolders.contains(it.name.toLowerCase()) }
+
+        includedFolders.each { dir ->
+            copy {
+                from dir
+                into file("${tempDir}/${dir.name}")
+            }
+        }
+
+        jarFiles.each { jarFile ->
+            copy {
+                from jarFile
+                into tempDir
+            }
+        }
+
+        def tempJarFiles = tempDir.listFiles().findAll { it.isFile() && it.name.endsWith('.jar') }
+
+        tempJarFiles.each { jarFile ->
+            exec {
+                workingDir tempDir
+                commandLine 'jar', 'xf', jarFile.absolutePath
+            }
+            jarFile.delete()
+        }
+
+        exec {
+            commandLine 'jar', 'cvf', archiveName, '-C', tempDir, '.'
+        }
+
+        def libsFolder = file('libs')
+        libsFolder.mkdirs()
+        def targetFile = file("${libsFolder}/${archiveName}")
+        if (targetFile.exists()) {
+            targetFile.delete()
+        }
+        file(archiveName).renameTo(file("${libsFolder}/${archiveName}"))
+
+        delete tempDir
     }
 }

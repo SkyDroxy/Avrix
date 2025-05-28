@@ -1,7 +1,10 @@
 package com.avrix.api.server;
 
+import java.sql.SQLException;
+
 import com.avrix.enums.AccessLevel;
 import com.avrix.events.EventManager;
+
 import zombie.characters.IsoPlayer;
 import zombie.commands.PlayerType;
 import zombie.core.logger.LoggerManager;
@@ -16,8 +19,6 @@ import zombie.network.Userlog;
 import zombie.network.chat.ChatServer;
 import zombie.scripting.ScriptManager;
 import zombie.scripting.objects.Item;
-
-import java.sql.SQLException;
 
 /**
  * A set of tools for player management, monitoring and analysis
@@ -480,5 +481,81 @@ public class PlayerUtils {
         } catch (SQLException e) {
             System.out.printf("[!] Error while ban user: '%s', error: %s%n", connection.username, e);
         }
+    }
+
+    /**
+     * Gets the UdpConnection of a player by their OnlineID.
+     *
+     * @param onlineID the OnlineID of the player
+     * @return the UdpConnection for the player, or null if not found
+     */
+    public static UdpConnection getUdpConnectionByPlayerOnlineID(short onlineID) {
+        for (int i = 0; i < GameServer.udpEngine.connections.size(); ++i) {
+            UdpConnection connection = GameServer.udpEngine.connections.get(i);
+            for (int j = 0; j < connection.players.length; ++j) {
+                IsoPlayer player = connection.players[j];
+                if (player != null && player.OnlineID == onlineID) {
+                    return connection;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the UdpConnection of a player by their OnlineID.
+     *
+     * @param id the ID of the player
+     * @return the UdpConnection for the player, or null if not found
+     */
+    public static UdpConnection getUdpConnectionByPlayerID(int id) {
+        for (int i = 0; i < GameServer.udpEngine.connections.size(); ++i) {
+            UdpConnection connection = GameServer.udpEngine.connections.get(i);
+            for (int j = 0; j < connection.players.length; ++j) {
+                IsoPlayer player = connection.players[j];
+                if (player != null && player.getID() == id) {
+                    return connection;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the player by their OnlineID.
+     *
+     * @param onlineID the OnlineID of the player
+     * @return the IsoPlayer instance for the player, or null if not found
+     */
+    public static IsoPlayer getPlayerByOnlineID(short onlineID) {
+        for (int i = 0; i < GameServer.udpEngine.connections.size(); ++i) {
+            UdpConnection connection = GameServer.udpEngine.connections.get(i);
+            for (int j = 0; j < connection.players.length; ++j) {
+                IsoPlayer player = connection.players[j];
+                if (player != null && player.OnlineID == onlineID) {
+                    return player;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the player by their ID.
+     *
+     * @param id the ID of the player
+     * @return the IsoPlayer instance for the player, or null if not found
+     */
+    public static IsoPlayer getPlayerByID(int id) {
+        for (int i = 0; i < GameServer.udpEngine.connections.size(); ++i) {
+            UdpConnection connection = GameServer.udpEngine.connections.get(i);
+            for (int j = 0; j < connection.players.length; ++j) {
+                IsoPlayer player = connection.players[j];
+                if (player != null && player.getID() == id) {
+                    return player;
+                }
+            }
+        }
+        return null;
     }
 }

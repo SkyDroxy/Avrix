@@ -1,3 +1,11 @@
+# AvrixLoader v1.6.1
+
+- Added new PlayerUtils utility methods [`PlayerUtils`](src/main/java/com/avrix/api/server/PlayerUtils.java) :
+  - `getUdpConnectionByPlayerOnlineID(short onlineID)`
+  - `getUdpConnectionByPlayerID(int id)`
+  - `getPlayerByOnlineID(short onlineID)`
+  - `getPlayerByID(int id)`
+
 # AvrixLoader v1.6.0
 
 - API tools are divided into separate folders
