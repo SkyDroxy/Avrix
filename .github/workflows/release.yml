@@ -176,10 +176,17 @@ jobs:
           core_url="$base/$ver/$core"
           jre_url="$base/$ver/$jre"
           tmp=$(mktemp)
-          mc cat "$MINIO_ALIAS/$MINIO_BUCKET/manifest.json" > "$tmp" || echo '{"versions":[]}' > "$tmp"
+          # Load manifest if exists, else start with empty structure
+          if mc stat "$MINIO_ALIAS/$MINIO_BUCKET/manifest.json" >/dev/null 2>&1; then
+            mc cat "$MINIO_ALIAS/$MINIO_BUCKET/manifest.json" > "$tmp"
+          else
+            echo '{"versions":[]}' > "$tmp"
+          fi
+          # Merge or upsert current version and set latest
           updated=$(jq --arg ver "$ver" --arg core "$core_url" --arg jre "$jre_url" '
-            .latest=$ver |
-            .versions=( ( .versions // [] | map(select((.version|tostring)!=$ver)) ) + [ {version:$ver, coreUrl:$core} + ( ( $jre|select(. != "") ) as $J? | if $J? then {jreUrl:$J} else {} end ) ] )
+            .versions = ( ( .versions // [] | map(select((.version|tostring) != $ver)) )
+              + [ ({version:$ver, coreUrl:$core} + (if ($jre|length) > 0 then {jreUrl:$jre} else {} end)) ] )
+            | .latest = $ver
           ' "$tmp")
           echo "$updated" > manifest.json
           mc cp --attr 'Content-Type: application/json' manifest.json "$MINIO_ALIAS/$MINIO_BUCKET/manifest.json"
