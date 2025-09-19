@@ -1,12 +1,19 @@
 package com.avrix.plugin;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
 import com.avrix.enums.Environment;
 import com.avrix.utils.Constants;
 import com.avrix.utils.VersionChecker;
 import com.avrix.utils.YamlFile;
-
-import java.io.File;
-import java.util.*;
 
 /**
  * Represents metadata for a plugin, including various details such as name, description, author, version, and dependencies.
@@ -24,6 +31,10 @@ public final class Metadata {
     private List<String> entryPointsList; // List of entry points as full class path
     private List<String> patchList; // List of classes that modify game code as a full class path
     private Map<String, String> dependenciesMap; // Dependency map, where the key is the identifier of the module (plugin), and the value is its version
+    private String image; // Path inside the jar to an image (e.g. assets/icon.png)
+    private String imageUrl; // Remote image URL fallback
+    private boolean internal; // True if this metadata represents an internal (bundled) logical module without its own jar
+    private String parentId; // If internal, id of its parent (e.g. avrix-core)
 
     /**
      * Private constructor to prevent direct instantiation.
@@ -68,6 +79,10 @@ public final class Metadata {
                 .entryPointsList(yamlFile.getStringList("entrypoints"))
                 .patchList(yamlFile.getStringList("patches"))
                 .dependencies(yamlFile.getStringMap("dependencies"))
+                .image(yamlFile.getString("image"))
+                .imageUrl(yamlFile.getString("imageUrl"))
+                .internal(yamlFile.getBoolean("internal"))
+                .parent(yamlFile.getString("parent"))
                 .pluginFile(jarFile)
                 .build();
     }
@@ -274,6 +289,26 @@ public final class Metadata {
     }
 
     /**
+     * Returns the path (inside the jar) of the image associated with this plugin, if any.
+     */
+    public String getImage() { return image; }
+
+    /**
+     * Returns a remote image URL (if provided) for this plugin.
+     */
+    public String getImageUrl() { return imageUrl; }
+
+    /**
+     * Indicates whether this metadata represents an internal logical plugin bundled in another jar.
+     */
+    public boolean isInternal() { return internal; }
+
+    /**
+     * Returns the parent plugin id if this metadata is internal (bundled), else null.
+     */
+    public String getParentId() { return parentId; }
+
+    /**
      * Builder class for constructing {@link Metadata} instances.
      */
     public final static class MetadataBuilder {
@@ -416,6 +451,38 @@ public final class Metadata {
          */
         public MetadataBuilder dependencies(Map<String, String> dependencies) {
             metadata.dependenciesMap = dependencies;
+            return this;
+        }
+
+        /**
+         * Sets the jar-internal image path.
+         */
+        public MetadataBuilder image(String image) {
+            metadata.image = image;
+            return this;
+        }
+
+        /**
+         * Sets the remote image URL.
+         */
+        public MetadataBuilder imageUrl(String imageUrl) {
+            metadata.imageUrl = imageUrl;
+            return this;
+        }
+
+        /**
+         * Marks this metadata as internal/bundled (no standalone jar file on disk).
+         */
+        public MetadataBuilder internal(boolean internal) {
+            metadata.internal = internal;
+            return this;
+        }
+
+        /**
+         * Specifies the parent plugin id (for internal/bundled logical plugins).
+         */
+        public MetadataBuilder parent(String parentId) {
+            metadata.parentId = parentId;
             return this;
         }
 

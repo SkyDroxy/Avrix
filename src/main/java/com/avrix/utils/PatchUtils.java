@@ -1,9 +1,5 @@
 package com.avrix.utils;
 
-import com.avrix.Launcher;
-import com.avrix.agent.ClassTransformer;
-import com.avrix.plugin.Metadata;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -14,6 +10,10 @@ import java.net.URLClassLoader;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
+import com.avrix.Launcher;
+import com.avrix.agent.ClassTransformer;
+import com.avrix.plugin.Metadata;
 
 /**
  * Manager for making modifications to game files.
@@ -72,8 +72,18 @@ public class PatchUtils {
                         Class<?> clazz = classLoader.loadClass(className);
                         if (ClassTransformer.class.isAssignableFrom(clazz)) {
                             ClassTransformer patchInstance = (ClassTransformer) clazz.getDeclaredConstructor().newInstance();
-                            patchInstance.modifyClass();
-                            patchInstance.applyModifications();
+                            try {
+                                patchInstance.modifyClass();
+                                patchInstance.applyModifications();
+                            } catch (RuntimeException re) {
+                                Throwable cause = re.getCause();
+                                // Skip patch if target game class is missing (common when client launching server-only patches)
+                                if (cause != null && cause.getClass().getName().contains("javassist.NotFoundException")) {
+                                    System.out.printf("[!] Skipping patch '%s' because target class '%s' not found.%n", clazz.getSimpleName(), patchInstance.getClassName());
+                                } else {
+                                    throw re;
+                                }
+                            }
                         }
                     } catch (ClassNotFoundException e) {
                         System.err.println("[!] Class not found: " + className);

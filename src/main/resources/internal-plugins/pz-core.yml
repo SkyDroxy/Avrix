@@ -1,0 +1,12 @@
+# Bundled internal logical plugin: Project Zomboid Core
+name: "Project Zomboid"
+id: "pz-core"
+author: "The Indie Stone"
+version: "%PZ_CORE_VERSION%"
+license: "Complex"
+environment: "both"
+internal: true
+parent: "avrix-core"
+entrypoints: []
+patches: []
+dependencies: {}

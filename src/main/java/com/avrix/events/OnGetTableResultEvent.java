@@ -23,5 +23,5 @@ public abstract class OnGetTableResultEvent extends Event {
      * @param rowId     The row identifier of the table result.
      * @param tableName The name of the table result.
      */
-    public abstract void handleEvent(ArrayList result, Integer rowId, String tableName);
+    public abstract void handleEvent(ArrayList<?> result, Integer rowId, String tableName);
 }

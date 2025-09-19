@@ -1,0 +1,12 @@
+id: avrix-core
+name: Avrix Core
+version: %PROJECT_VERSION%
+author: Avrix Team
+license: MIT
+environment: both
+description: |
+  Avrix's main core provides the loading platform and shared APIs.
+  This module encapsulates the internal components (avrix-loader, pz-core) needed
+  for external plugins to work.
+internal: false
+dependencies: {}

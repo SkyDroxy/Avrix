@@ -1,3 +1,9 @@
+# AvrixLoader v1.6.2
+
+- Added support for Opus codec and OpenAL via LWJGL (native audio encoding/decoding)
+  - Requires `lwjgl-opus`, `lwjgl-openal` and `lwjgl` runtime libraries
+  - Automatic detection of OS-specific native libraries
+
 # AvrixLoader v1.6.1
 
 - Added new PlayerUtils utility methods [`PlayerUtils`](src/main/java/com/avrix/api/server/PlayerUtils.java) :

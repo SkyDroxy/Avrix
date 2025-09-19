@@ -1,0 +1,14 @@
+# Bundled internal logical plugin: Avrix Loader
+name: "Avrix Loader"
+id: "avrix-loader"
+author: "Brov3r"
+version: "%PROJECT_VERSION%"
+license: "GNU GPLv3"
+environment: "both"
+contacts: "https://github.com/Brov3r/Avrix"
+internal: true
+parent: "avrix-core"
+entrypoints: []
+patches: []
+dependencies:
+  pz-core: ">=41.78.16"

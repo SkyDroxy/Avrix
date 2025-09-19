@@ -1,0 +1,124 @@
+name: Release Avrix Core and JRE
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify libs directory and JAR files exist
+        shell: pwsh
+        run: |
+          if (!(Test-Path -Path './libs')) { Write-Error 'Libs directory does not exist!'; exit 1 }
+          if (!(Test-Path -Path './libs/ProjectZomboid-core-41.78.16.jar')) { Write-Error 'ProjectZomboid-core-41.78.16.jar missing!'; exit 1 }
+          if (!(Test-Path -Path './libs/ProjectZomboid-libs-41.78.16.jar')) { Write-Error 'ProjectZomboid-libs-41.78.16.jar missing!'; exit 1 }
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        shell: bash
+        run: chmod +x gradlew
+
+      - name: Build (skip tests)
+        env:
+          AVRIX_VERSION: ${{ github.ref_name }}
+        run: |
+          ./gradlew -v
+          ./gradlew processResources
+          ./gradlew shadowJar -x test
+        shell: bash
+
+      - name: Locate Avrix-Core.jar
+        id: findcore
+        shell: pwsh
+        run: |
+          $ver = '${{ github.ref_name }}' -replace '^[vV]', ''
+          $jar = Join-Path 'build' "Avrix-Core-$ver.jar"
+          if (!(Test-Path $jar)) {
+            # fallback to any Avrix-Core-*.jar
+            $fallback = Get-ChildItem -Path 'build' -Filter 'Avrix-Core-*.jar' | Select-Object -First 1
+            if ($fallback) { $jar = $fallback.FullName }
+          }
+          if (!(Test-Path $jar)) { Write-Error "Avrix-Core.jar not found in build/"; exit 1 }
+          echo "jar=$jar" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Derive modules with jdeps
+        id: jdeps
+        shell: pwsh
+        run: |
+          $jar = '${{ steps.findcore.outputs.jar }}'
+          $cp = "$pwd\libs\ProjectZomboid-core-41.78.16.jar;$pwd\libs\ProjectZomboid-libs-41.78.16.jar"
+          $modules = & jdeps --print-module-deps --ignore-missing-deps --multi-release 17 --class-path $cp $jar
+          if ($LASTEXITCODE -ne 0) { Write-Error "jdeps failed"; exit 1 }
+          echo "modules=$modules" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Build minimal JRE with jlink (Windows)
+        shell: pwsh
+        run: |
+          $modules = '${{ steps.jdeps.outputs.modules }}'
+          if ([string]::IsNullOrWhiteSpace($modules)) { $modules = 'java.base' }
+          $out = Join-Path $pwd 'jre'
+          if (Test-Path $out) { Remove-Item -Recurse -Force $out }
+          & jlink --compress=2 --strip-debug --no-header-files --no-man-pages --add-modules $modules --output $out
+          if ($LASTEXITCODE -ne 0) { Write-Error "jlink failed"; exit 1 }
+
+      - name: Prepare dist and Zip JRE
+        shell: pwsh
+        run: |
+          if (Test-Path 'dist') { Remove-Item -Recurse -Force 'dist' }
+          New-Item -ItemType Directory -Path 'dist' | Out-Null
+          # Ensure jre.zip has a top-level 'jre/' folder
+          if (Test-Path 'dist/jre.zip') { Remove-Item -Force 'dist/jre.zip' }
+          Compress-Archive -Path 'jre' -DestinationPath 'dist/jre.zip'
+          # Copy core jar to dist with canonical name
+          $ver = '${{ github.ref_name }}' -replace '^[vV]', ''
+          Copy-Item -Path '${{ steps.findcore.outputs.jar }}' -Destination (Join-Path 'dist' "Avrix-Core-$ver.jar") -Force
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: dist/**
+
+  release:
+    name: Create GitHub Release
+    needs: [build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: dist
+
+      - name: Compute asset names
+        id: names
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          core="Avrix-Core-${ver}.jar"
+          echo "core=$core" >> $GITHUB_OUTPUT
+          echo "jre=jre.zip" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Avrix ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/${{ steps.names.outputs.core }}
+            dist/${{ steps.names.outputs.jre }}

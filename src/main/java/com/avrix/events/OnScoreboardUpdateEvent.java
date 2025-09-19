@@ -23,5 +23,5 @@ public abstract class OnScoreboardUpdateEvent extends Event {
      * @param displayNames The list of display names for the players which are being updated on the score board.
      * @param steamIds     The list of Steam identifiers of the players which are being updated on the score board.
      */
-    public abstract void handleEvent(ArrayList playerNames, ArrayList displayNames, ArrayList steamIds);
+    public abstract void handleEvent(ArrayList<String> playerNames, ArrayList<String> displayNames, ArrayList<String> steamIds);
 }

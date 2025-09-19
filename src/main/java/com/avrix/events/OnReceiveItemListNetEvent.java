@@ -1,8 +1,8 @@
 package com.avrix.events;
 
-import zombie.characters.IsoPlayer;
-
 import java.util.ArrayList;
+
+import zombie.characters.IsoPlayer;
 
 /**
  * Triggered when a player is receiving a list of items from another player.
@@ -27,5 +27,5 @@ public abstract class OnReceiveItemListNetEvent extends Event {
      * @param sessionId The session identifier for the transaction.
      * @param custom    TODO
      */
-    public abstract void handleEvent(IsoPlayer sender, ArrayList itemList, IsoPlayer receiver, String sessionId, String custom);
+    public abstract void handleEvent(IsoPlayer sender, ArrayList<?> itemList, IsoPlayer receiver, String sessionId, String custom);
 }

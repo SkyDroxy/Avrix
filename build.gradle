@@ -12,7 +12,14 @@ plugins {
  * Project Variables
  */
 group = 'com.avrix'
-version = '1.6.1'
+// Allow CI to override version via env (e.g., AVRIX_VERSION or GITHUB_REF_NAME)
+def envVer = System.getenv('AVRIX_VERSION') ?: System.getenv('GITHUB_REF_NAME')
+if (envVer != null && !envVer.isEmpty()) {
+    // Strip leading v/V from tag names like v1.2.3
+    version = envVer.replaceFirst(/^[vV]/, '')
+} else {
+    version = '1.6.7'
+}
 
 /**
  * Path to the compiled Jar file
@@ -27,6 +34,10 @@ repositories {
     mavenCentral()
     flatDir {
         dirs project.file("$rootProject.projectDir/libs")
+    }
+    maven {
+        name = "henkelmax.public"
+        url = 'https://maven.maxhenkel.de/repository/public'
     }
 }
 
@@ -77,10 +88,26 @@ dependencies {
     implementation 'org.json:json:20240303'
     testImplementation 'org.json:json:20240303'
 
-    implementation platform("org.lwjgl:lwjgl-bom:3.3.4")
-    implementation "org.lwjgl:lwjgl-nanovg"
+    implementation platform("org.lwjgl:lwjgl-bom:3.3.6")
+
+    // Core LWJGL
+    implementation "org.lwjgl:lwjgl"
     runtimeOnly "org.lwjgl:lwjgl::$lwjglNatives"
-    runtimeOnly "org.lwjgl:lwjgl-nanovg::$lwjglNatives"
+    
+    // glfw
+    implementation "org.lwjgl:lwjgl-glfw"
+    runtimeOnly "org.lwjgl:lwjgl-glfw::$lwjglNatives"
+
+    // Opus codec
+    implementation 'de.maxhenkel.opus4j:opus4j:2.0.2'
+
+    // OpenAL
+    implementation "org.lwjgl:lwjgl-openal"
+    runtimeOnly "org.lwjgl:lwjgl-openal::$lwjglNatives"
+
+    // NanoVG
+    implementation "org.lwjgl:lwjgl-nanovg"
+    runtimeOnly "org.lwjgl:lwjgl-nanovg::$lwjglNatives"    
 
     /**
      * Test
@@ -133,6 +160,32 @@ processResources {
                     .replace('%PROJECT_NAME%', rootProject.name.capitalize() + " Loader")
         }
     }
+    // Replace version token inside core metadata.yml (root resource)
+    filesMatching('metadata.yml') {
+        filter { line -> line.replace('%PROJECT_VERSION%', version) }
+    }
+    // Replace version token inside internal plugin metadata (avrix-loader)
+    filesMatching('internal-plugins/avrix-loader.yml') {
+        filter { line -> line.replace('%PROJECT_VERSION%', version) }
+    }
+    // Replace version token for pz-core (derive from libs jar filename or fallback)
+    def pzVersion = '41.78.16'
+    def coreJar = file('libs/ProjectZomboid-core-41.78.16.jar')
+    if (coreJar.exists()) {
+        def m = (coreJar.name =~ /core-(\d+\.\d+\.\d+)\.jar$/)
+        if (m.find()) {
+            pzVersion = m.group(1)
+        }
+    }
+    filesMatching('internal-plugins/pz-core.yml') {
+        def finalPz = pzVersion
+        filter { line -> line.replace('%PZ_CORE_VERSION%', finalPz) }
+    }
+}
+
+// Ensure resource filtering uses UTF-8 to keep accents correct in metadata.yml & internal plugins
+tasks.withType(ProcessResources).configureEach {
+    filteringCharset = 'UTF-8'
 }
 
 /**

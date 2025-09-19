@@ -85,3 +85,28 @@ liability associated with the use of this software.
 # License
 
 This project is licensed under [GNU GPLv3](./LICENSE).
+
+## Versioning
+
+The Avrix Core version is derived from the environment when available:
+
+- AVRIX_VERSION or GITHUB_REF_NAME (tag name) is used if set (leading `v` is stripped).
+- Otherwise, the fallback version inside `build.gradle` is used.
+
+To bump the fallback version (for local builds / docs):
+
+```
+node scripts/bump-version.cjs v1.6.8
+```
+
+CI release builds are triggered by pushing a tag like `v1.6.8`.
+
+## Release artifacts
+
+The Shadow JAR is created in `build/` as `Avrix-Core-<version>.jar`.
+GitHub Actions (release) also generates and uploads:
+
+- `Avrix-Core-<version>.jar`
+- `jre.zip` (minimal JRE built via jdeps + jlink)
+
+Launcher expectation: unzip `jre.zip` into `versions/<id>/jre/` so the launcher can run with the local JRE.

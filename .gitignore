@@ -39,3 +39,6 @@ bin/
 .DS_Store
 .vs/
 temp/
+
+### Installer files ###
+installer
