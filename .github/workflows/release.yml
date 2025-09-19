@@ -122,3 +122,64 @@ jobs:
           files: |
             dist/${{ steps.names.outputs.core }}
             dist/${{ steps.names.outputs.jre }}
+
+  publish-minio:
+    name: Publish to MinIO (manifest)
+    needs: [build-windows]
+    runs-on: ubuntu-latest
+    env:
+      MINIO_ALIAS: minio
+      MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+      MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+      MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+      MINIO_BUCKET: ${{ secrets.MINIO_LOADER_BUCKET }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: dist
+
+      - name: Install MinIO client (mc)
+        run: |
+          curl -L https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
+          chmod +x mc
+          sudo mv mc /usr/local/bin/mc
+
+      - name: Configure MinIO alias
+        run: |
+          mc alias set "$MINIO_ALIAS" "$MINIO_ENDPOINT" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY"
+          mc mb -p "$MINIO_ALIAS/$MINIO_BUCKET" || true
+          mc anonymous set public "$MINIO_ALIAS/$MINIO_BUCKET" || true
+
+      - name: Compute names
+        id: names
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          echo "ver=$ver" >> $GITHUB_OUTPUT
+          echo "core=Avrix-Core-$ver.jar" >> $GITHUB_OUTPUT
+          echo "jre=jre.zip" >> $GITHUB_OUTPUT
+          echo "base_url=$MINIO_ENDPOINT/$MINIO_BUCKET" >> $GITHUB_OUTPUT
+
+      - name: Upload objects
+        run: |
+          ver='${{ steps.names.outputs.ver }}'
+          mc cp --attr 'Content-Type: application/java-archive' "dist/${{ steps.names.outputs.core }}" "$MINIO_ALIAS/$MINIO_BUCKET/$ver/${{ steps.names.outputs.core }}"
+          mc cp --attr 'Content-Type: application/zip' "dist/${{ steps.names.outputs.jre }}" "$MINIO_ALIAS/$MINIO_BUCKET/$ver/${{ steps.names.outputs.jre }}"
+
+      - name: Update manifest.json
+        run: |
+          ver='${{ steps.names.outputs.ver }}'
+          core='${{ steps.names.outputs.core }}'
+          jre='${{ steps.names.outputs.jre }}'
+          base='${{ steps.names.outputs.base_url }}'
+          core_url="$base/$ver/$core"
+          jre_url="$base/$ver/$jre"
+          tmp=$(mktemp)
+          mc cat "$MINIO_ALIAS/$MINIO_BUCKET/manifest.json" > "$tmp" || echo '{"versions":[]}' > "$tmp"
+          updated=$(jq --arg ver "$ver" --arg core "$core_url" --arg jre "$jre_url" '
+            .latest=$ver |
+            .versions=( ( .versions // [] | map(select((.version|tostring)!=$ver)) ) + [ {version:$ver, coreUrl:$core} + ( ( $jre|select(. != "") ) as $J? | if $J? then {jreUrl:$J} else {} end ) ] )
+          ' "$tmp")
+          echo "$updated" > manifest.json
+          mc cp --attr 'Content-Type: application/json' manifest.json "$MINIO_ALIAS/$MINIO_BUCKET/manifest.json"
