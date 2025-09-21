@@ -30,48 +30,58 @@ public class WindowUtils {
     /**
      * Apply display settings provided via system properties set by the launcher.
      * Recognized properties:
-     * - avrix.fullscreen: boolean (true/false)
-     * - avrix.width: integer pixels
-     * - avrix.height: integer pixels
+     * - avrix.windowMode: 'fullscreen' | 'windowed' | 'borderless'
+     * - avrix.fullscreen: boolean (legacy; used to derive windowMode if missing)
+     * - avrix.width: integer pixels (windowed only)
+     * - avrix.height: integer pixels (windowed only)
      *
      * This method is safe to call multiple times; failures are caught and ignored.
      */
     public static void applyDisplaySettingsFromSystemProperties() {
-        String fsProp = System.getProperty("avrix.fullscreen");
-        String wProp = System.getProperty("avrix.width");
-        String hProp = System.getProperty("avrix.height");
+        final String fsProp = System.getProperty("avrix.fullscreen");
+        final String wmProp = System.getProperty("avrix.windowMode");
+        final String wProp = System.getProperty("avrix.width");
+        final String hProp = System.getProperty("avrix.height");
 
         // Nothing to do if no properties provided
-        if (fsProp == null && wProp == null && hProp == null) return;
+        if (fsProp == null && wmProp == null && wProp == null && hProp == null) return;
 
-        boolean fullscreen = fsProp != null && (fsProp.equalsIgnoreCase("true") || fsProp.equals("1") || fsProp.equalsIgnoreCase("yes"));
+        final boolean legacyFullscreen = fsProp != null && (fsProp.equalsIgnoreCase("true") || fsProp.equals("1") || fsProp.equalsIgnoreCase("yes"));
+        final String windowMode = wmProp != null ? wmProp : (legacyFullscreen ? "fullscreen" : "windowed");
 
         int width = -1;
         int height = -1;
-        try {
-            if (wProp != null) width = Integer.parseInt(wProp.trim());
-        } catch (NumberFormatException ignored) {}
-        try {
-            if (hProp != null) height = Integer.parseInt(hProp.trim());
-        } catch (NumberFormatException ignored) {}
+        try { if (wProp != null) width = Integer.parseInt(wProp.trim()); } catch (NumberFormatException ignored) {}
+        try { if (hProp != null) height = Integer.parseInt(hProp.trim()); } catch (NumberFormatException ignored) {}
 
         try {
-            if (fullscreen) {
-                // If a specific fullscreen resolution was provided, set it before toggling fullscreen
-                if (width > 0 && height > 0) {
-                    Display.setDisplayMode(new DisplayMode(width, height));
-                }
+            if ("fullscreen".equalsIgnoreCase(windowMode)) {
+                // Fullscreen uses the current system/display resolution.
                 Display.setFullscreen(true);
-            } else {
-                // Ensure windowed mode first, then set size if provided
+            } else if ("borderless".equalsIgnoreCase(windowMode)) {
+                // Borderless windowed: size to desktop resolution and place at (0,0), keep windowed mode.
                 Display.setFullscreen(false);
+                try {
+                    DisplayMode dm = Display.getDesktopDisplayMode();
+                    if (dm != null) {
+                        Display.setDisplayMode(new DisplayMode(dm.getWidth(), dm.getHeight()));
+                    }
+                } catch (Exception ignored) {}
+                try {
+                    Display.setLocation(0, 0);
+                    Display.setResizable(false);
+                } catch (Exception ignored) {}
+            } else { // windowed
+                // Windowed mode: apply provided width/height if valid, then ensure windowed state.
                 if (width > 0 && height > 0) {
-                    Display.setDisplayMode(new DisplayMode(width, height));
+                    try {
+                        Display.setDisplayMode(new DisplayMode(width, height));
+                    } catch (Exception ignored) {}
                 }
+                Display.setFullscreen(false);
             }
-        } catch (Throwable t) {
-            // Be defensive: if anything goes wrong, avoid crashing the game. Optionally print for debugging.
-            t.printStackTrace();
+        } catch (Exception ignored) {
+            // Avoid crashing the game if applying settings fails on this platform/runtime.
         }
     }
 }
