@@ -4,6 +4,7 @@ import com.avrix.agent.ClassTransformer;
 import com.avrix.events.EventManager;
 import com.avrix.ui.WidgetManager;
 import com.avrix.utils.Constants;
+
 import javassist.CannotCompileException;
 import javassist.expr.ExprEditor;
 import javassist.expr.MethodCall;
@@ -41,6 +42,8 @@ public class PatchGameWindow extends ClassTransformer {
                         }
                     }
                 });
+                // Apply launcher-provided display settings (fullscreen/size) once the display is initialized
+                ctMethod.insertAfter(com.avrix.api.client.WindowUtils.class.getName() + ".applyDisplaySettingsFromSystemProperties();");
             } catch (CannotCompileException e) {
                 throw new RuntimeException(e);
             }
