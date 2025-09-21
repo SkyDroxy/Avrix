@@ -18,7 +18,7 @@ if (envVer != null && !envVer.isEmpty()) {
     // Strip leading v/V from tag names like v1.2.3
     version = envVer.replaceFirst(/^[vV]/, '')
 } else {
-    version = '1.7.1'
+    version = '1.7.2'
 }
 
 /**
