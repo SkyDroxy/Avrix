@@ -34,8 +34,6 @@ public class PatchGameWindow extends ClassTransformer {
             }
         }).modifyMethod("InitDisplay", (ctClass, ctMethod) -> {
             try {
-                // If borderless windowed is requested, set LWJGL undecorated flag BEFORE display creation
-                ctMethod.insertBefore("if (\"borderless\".equalsIgnoreCase(System.getProperty(\"avrix.windowMode\"))) { System.setProperty(\"org.lwjgl.opengl.Window.undecorated\", \"true\"); }");
                 ctMethod.instrument(new ExprEditor() {
                     public void edit(MethodCall m) throws CannotCompileException {
                         if (m.getClassName().equals("org.lwjglx.opengl.Display") && m.getMethodName().equals("setTitle")) {
@@ -44,8 +42,6 @@ public class PatchGameWindow extends ClassTransformer {
                         }
                     }
                 });
-                // Apply launcher-provided display settings (fullscreen/size) once the display is initialized
-                ctMethod.insertAfter(com.avrix.api.client.WindowUtils.class.getName() + ".applyDisplaySettingsFromSystemProperties();");
             } catch (CannotCompileException e) {
                 throw new RuntimeException(e);
             }
