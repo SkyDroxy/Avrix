@@ -98,13 +98,6 @@ dependencies {
     implementation "org.lwjgl:lwjgl-glfw"
     runtimeOnly "org.lwjgl:lwjgl-glfw::$lwjglNatives"
 
-    // Opus codec
-    implementation 'de.maxhenkel.opus4j:opus4j:2.0.2'
-
-    // OpenAL
-    implementation "org.lwjgl:lwjgl-openal"
-    runtimeOnly "org.lwjgl:lwjgl-openal::$lwjglNatives"
-
     // NanoVG
     implementation "org.lwjgl:lwjgl-nanovg"
     runtimeOnly "org.lwjgl:lwjgl-nanovg::$lwjglNatives"    
